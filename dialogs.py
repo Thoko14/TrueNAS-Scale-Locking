@@ -70,6 +70,7 @@ class ConfigDialog(QDialog):
         self.main_layout.addWidget(buttons)
 
         self.setLayout(self.main_layout)
+        self.update_window_size()
 
     def add_dataset_field(self, name="", password=""):
         """Fügt ein neues Dataset-Feld hinzu."""
