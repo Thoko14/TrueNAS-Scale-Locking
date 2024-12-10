@@ -1,1 +1,1 @@
-{"host": "192.168.2.71", "username": "root", "password": null, "pool": "TrueMirror", "datasets": [{"name": "DataNAS", "password": null}, {"name": "Media", "password": null}, {"name": "0000xxx", "password": null}, {"name": "", "password": null}]}
+{"host": "", "username": "", "password": "gAAAAABnWCFbTRgavncLqRCsq5MIvMDTryYdnKOxSMK0KNzjBDfiXSeSw7-pIJKfwOI9Im9vRzqBJEqVd5L9SpGs08K3B7PUow==", "pool": "", "datasets": [{"name": "sdbsdb", "password": null}]}
