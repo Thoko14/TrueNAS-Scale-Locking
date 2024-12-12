@@ -1,27 +1,35 @@
 import paramiko
-from config import CONFIG, decrypt_password
+from config import load_config, decrypt_password
 
-def execute_ssh_command(action, output_box):
+def execute_ssh_command(command, output_box):
+    """Führt einen SSH-Befehl auf dem TrueNAS-Server aus."""
+    client = None
     try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(CONFIG["host"], username=CONFIG["username"], password=decrypt_password(CONFIG["password"]) if CONFIG["password"] else None)
+        config = load_config()
+        hostname = config.get("host")
+        username = config.get("username", "root")
+        encrypted_password = config.get("password")
 
-        output_box.clear()
-        for dataset in CONFIG["datasets"]:
-            dataset_name = dataset["name"]
-            full_path = f"{CONFIG['pool']}/{dataset_name}"
-            command = f"zfs {action}-key {full_path}"
-            stdin, stdout, stderr = ssh.exec_command(command)
-            output = stdout.read().decode().strip()
-            error = stderr.read().decode().strip()
-            if error:
-                output_box.append(f"[Fehler bei {dataset_name}]: {error}")
-            else:
-                output_box.append(f"[Erfolg bei {dataset_name}]: {output}")
-        ssh.close()
+        if not hostname or not encrypted_password:
+            output_box.append("Fehler: Hostname oder Passwort fehlen in der Konfiguration.")
+            return
+
+        password = decrypt_password(encrypted_password)
+
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(hostname=hostname, username=username, password=password)
+
+        stdin, stdout, stderr = client.exec_command(command)
+        output_box.append(f"Befehl: {command} wird ausgeführt...\n")
+        output_box.append(stdout.read().decode())
+        output_box.append(stderr.read().decode())
     except Exception as e:
-        output_box.append(f"Verbindungsfehler: {str(e)}")
+        output_box.append(f"Fehler: {str(e)}")
+    finally:
+        if client:  # Überprüfe, ob der Client initialisiert wurde
+            client.close()
 
 def check_status(output_box):
-    execute_ssh_command("get keystatus", output_box)
+    """Führt den Statusbefehl aus und gibt die Ergebnisse aus."""
+    execute_ssh_command("systemctl status", output_box)

@@ -28,15 +28,16 @@ def load_config():
         return {
             "host": "",
             "username": "",
-            "password": "",
+            "password": None,
             "pool": "",
             "datasets": []
         }
 
 # Konfiguration speichern
-def save_config():
+def save_config(config):
+    """Speichert die Konfigurationsdatei."""
     with open(CONFIG_FILE, "w") as file:
-        json.dump(CONFIG, file)
+        json.dump(config, file, indent=4)
 
 # Verschlüsseln und Entschlüsseln von Passwörtern
 def encrypt_password(password):

@@ -1,21 +1,19 @@
 import sys
-import os
-import json
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QTextEdit, QLabel, QPushButton, QWidget, QAction, QMessageBox
+    QApplication, QMainWindow, QVBoxLayout, QLabel, QPushButton, QWidget, QAction, QMessageBox, QTextEdit, QInputDialog
 )
-from config import CONFIG_FILE, load_config
+from config import load_config, decrypt_password
+from ssh_commands import execute_ssh_command
 from dialogs import ConfigDialog
 from reset_utils import reset_app
 
 class TrueNASManager(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.config = load_config()  # Lade die Konfiguration
+        self.config = load_config()
         self.setWindowTitle("TrueNAS Dataset Manager")
         self.setGeometry(100, 100, 500, 400)
         self.center_window()
-
         self.init_ui()
 
     def init_ui(self):
@@ -32,15 +30,15 @@ class TrueNASManager(QMainWindow):
 
         # Lock-, Unlock- und Status-Buttons
         lock_button = QPushButton("Lock Datasets")
-        lock_button.clicked.connect(lambda: self.output_box.append("Locking datasets... (not implemented)"))
+        lock_button.clicked.connect(self.lock_datasets)
         layout.addWidget(lock_button)
 
         unlock_button = QPushButton("Unlock Datasets")
-        unlock_button.clicked.connect(lambda: self.output_box.append("Unlocking datasets... (not implemented)"))
+        unlock_button.clicked.connect(self.unlock_datasets)
         layout.addWidget(unlock_button)
 
         status_button = QPushButton("Status prüfen")
-        status_button.clicked.connect(lambda: self.output_box.append("Checking status... (not implemented)"))
+        status_button.clicked.connect(self.check_status)
         layout.addWidget(status_button)
 
         # Ausgabe-Box
@@ -53,30 +51,66 @@ class TrueNASManager(QMainWindow):
         if not hasattr(self, "menu_initialized"):
             self.menu_initialized = True
             menu_bar = self.menuBar()
-            settings_menu = menu_bar.addMenu("Einstellungen")
 
-            # Menüpunkt: Konfiguration
+            # Einstellungen
+            settings_menu = menu_bar.addMenu("Einstellungen")
             config_action = QAction("Konfiguration", self)
             config_action.triggered.connect(self.open_config_dialog)
             settings_menu.addAction(config_action)
 
-            # Menüpunkt: App Zurücksetzen
             reset_action = QAction("App Zurücksetzen", self)
             reset_action.triggered.connect(self.confirm_reset)
             settings_menu.addAction(reset_action)
 
+            # Systemsteuerung
+            system_menu = menu_bar.addMenu("Systemsteuerung")
+            reboot_action = QAction("Reboot", self)
+            reboot_action.triggered.connect(self.confirm_reboot)
+            system_menu.addAction(reboot_action)
+
+            shutdown_action = QAction("Shutdown", self)
+            shutdown_action.triggered.connect(self.confirm_shutdown)
+            system_menu.addAction(shutdown_action)
+
         main_widget.setLayout(layout)
         self.setCentralWidget(main_widget)
 
+    def lock_datasets(self):
+        """Verschlüsselt die Datasets."""
+        self.output_box.append("Locking datasets...")
+        for dataset in self.config['datasets']:
+            dataset_name = dataset['name']
+            self.output_box.append(f"Locking dataset: {dataset_name}...")
+            execute_ssh_command(f"zfs unload-key -r {self.config['pool']}/{dataset_name}", self.output_box)
+
+    def unlock_datasets(self):
+        """Entschlüsselt die Datasets."""
+        self.output_box.append("Unlocking datasets...")
+        for dataset in self.config['datasets']:
+            dataset_name = dataset['name']
+            password = dataset.get('password')
+            if not password:
+                password, ok = QInputDialog.getText(self, "Passwort erforderlich", f"Passwort für Dataset {dataset_name} eingeben:", QInputDialog.Password)
+                if not ok or not password:
+                    self.output_box.append(f"Überspringe Dataset: {dataset_name} (kein Passwort eingegeben).")
+                    continue
+            else:
+                password = decrypt_password(password)
+
+            self.output_box.append(f"Unlocking dataset: {dataset_name}...")
+            execute_ssh_command(f"echo {password} | zfs load-key -r {self.config['pool']}/{dataset_name}", self.output_box)
+
+    def check_status(self):
+        """Prüft den Status des Systems."""
+        self.output_box.append("Prüfe Systemstatus...")
+        execute_ssh_command("zfs list", self.output_box)
+
     def open_config_dialog(self):
         """Öffnet das Konfigurationsdialogfenster."""
-        print("Öffne Konfigurationsdialog...")
         config_dialog = ConfigDialog(self)
         if config_dialog.exec_():
-            print("Konfigurationsdialog erfolgreich abgeschlossen.")
-            self.init_ui()  # UI nach Konfigurationsänderungen aktualisieren
-        else:
-            print("Konfigurationsdialog abgebrochen.")
+            self.config = load_config()  # Aktualisiere die Konfiguration
+            self.init_ui()
 
     def confirm_reset(self):
         """Zeigt eine Warnung an und setzt die App zurück."""
@@ -88,9 +122,32 @@ class TrueNASManager(QMainWindow):
             QMessageBox.Yes | QMessageBox.No
         )
         if reply == QMessageBox.Yes:
-            reset_app(self.output_box)  # Übergibt die output_box an reset_app
+            reset_app(self.output_box)
             self.output_box.append("Reset erfolgreich abgeschlossen.")
 
+    def confirm_reboot(self):
+        """Zeigt eine Warnung an und startet das System neu."""
+        reply = QMessageBox.warning(
+            self,
+            "System neu starten",
+            "Sind Sie sicher, dass Sie den TrueNAS-Server neu starten möchten?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            self.output_box.append("Starte System neu...")
+            execute_ssh_command("reboot", self.output_box)
+
+    def confirm_shutdown(self):
+        """Zeigt eine Warnung an und fährt das System herunter."""
+        reply = QMessageBox.warning(
+            self,
+            "System herunterfahren",
+            "Sind Sie sicher, dass Sie den TrueNAS-Server herunterfahren möchten?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            self.output_box.append("Fahre System herunter...")
+            execute_ssh_command("shutdown now", self.output_box)
 
     def center_window(self):
         """Platziert das Fenster in der Mitte des Bildschirms."""
@@ -102,23 +159,18 @@ class TrueNASManager(QMainWindow):
 
 def initialize_app():
     """Überprüft, ob die Konfiguration existiert und gültig ist, und führt ggf. das Setup durch."""
-    from config import load_config, save_config
-    
     try:
         config = load_config()
-        # Überprüfen, ob die erforderlichen Felder in der Konfiguration vorhanden sind
         if not config.get("host") or not config.get("pool") or not config.get("datasets"):
             raise ValueError("Ungültige oder unvollständige Konfiguration.")
     except (FileNotFoundError, ValueError):
-        print("Keine gültige Konfiguration gefunden. Starte Setup...")
         from setup import SetupDialog
         app = QApplication(sys.argv)
         setup_dialog = SetupDialog()
         if setup_dialog.exec_():
             print("Setup abgeschlossen. Anwendung wird gestartet.")
         else:
-            print("Setup abgebrochen. Anwendung wird beendet.")
-            sys.exit()
+            sys.exit("Setup abgebrochen.")
 
 def main():
     """Startet die Hauptanwendung."""
@@ -127,7 +179,6 @@ def main():
     main_window = TrueNASManager()
     main_window.show()
     sys.exit(app.exec_())
-
 
 if __name__ == "__main__":
     main()
