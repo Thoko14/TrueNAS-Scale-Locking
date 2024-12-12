@@ -19,25 +19,19 @@ def get_encryption_key():
 ENCRYPTION_KEY = get_encryption_key()
 FERNET = Fernet(ENCRYPTION_KEY)
 
-# Konfiguration laden oder erstellen
 def load_config():
+    """Lädt die Konfigurationsdatei."""
     try:
         with open(CONFIG_FILE, "r") as file:
             return json.load(file)
     except FileNotFoundError:
         return {
-            "host": "192.168.2.71",
-            "username": "root",
-            "password": None,
-            "pool": "TrueMirror",
-            "datasets": [
-                {"name": "DataNAS", "password": None},
-                {"name": "Media", "password": None},
-                {"name": "Memories", "password": None}
-            ]
+            "host": "",
+            "username": "",
+            "password": "",
+            "pool": "",
+            "datasets": []
         }
-
-CONFIG = load_config()
 
 # Konfiguration speichern
 def save_config():

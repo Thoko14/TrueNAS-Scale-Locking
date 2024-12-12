@@ -4,13 +4,14 @@ import json
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QTextEdit, QLabel, QPushButton, QWidget, QAction, QMessageBox
 )
-from config import CONFIG
+from config import CONFIG_FILE, load_config
 from dialogs import ConfigDialog
 from reset_utils import reset_app
 
 class TrueNASManager(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.config = load_config()  # Lade die Konfiguration
         self.setWindowTitle("TrueNAS Dataset Manager")
         self.setGeometry(100, 100, 500, 400)
         self.center_window()
@@ -23,9 +24,9 @@ class TrueNASManager(QMainWindow):
         layout = QVBoxLayout()
 
         # Anzeige von IP, Pool und Datasets
-        layout.addWidget(QLabel(f"Host-IP: {CONFIG['host']}"))
-        layout.addWidget(QLabel(f"Pool-Name: {CONFIG['pool']}"))
-        datasets_label = QLabel(f"Datasets: {', '.join([ds['name'] for ds in CONFIG['datasets']])}")
+        layout.addWidget(QLabel(f"Host-IP: {self.config['host']}"))
+        layout.addWidget(QLabel(f"Pool-Name: {self.config['pool']}"))
+        datasets_label = QLabel(f"Datasets: {', '.join([ds['name'] for ds in self.config['datasets']])}")
         datasets_label.setWordWrap(True)
         layout.addWidget(datasets_label)
 
@@ -99,9 +100,22 @@ class TrueNASManager(QMainWindow):
         window_geometry.moveCenter(center_point)
         self.move(window_geometry.topLeft())
 
+def initialize_app():
+    """Überprüft, ob die Konfiguration existiert, und führt ggf. das Setup durch."""
+    if not os.path.exists(CONFIG_FILE):
+        print("Keine Konfiguration gefunden. Starte Setup...")
+        from setup import SetupDialog
+        app = QApplication(sys.argv)
+        setup_dialog = SetupDialog()
+        if setup_dialog.exec_():
+            print("Setup abgeschlossen. Anwendung wird gestartet.")
+        else:
+            print("Setup abgebrochen. Anwendung wird beendet.")
+            sys.exit()
 
 def main():
     """Startet die Hauptanwendung."""
+    initialize_app()
     app = QApplication(sys.argv)
     main_window = TrueNASManager()
     main_window.show()

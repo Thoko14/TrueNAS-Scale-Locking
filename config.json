@@ -1,1 +1,7 @@
-{"host": "", "username": "", "password": "gAAAAABnWCFbTRgavncLqRCsq5MIvMDTryYdnKOxSMK0KNzjBDfiXSeSw7-pIJKfwOI9Im9vRzqBJEqVd5L9SpGs08K3B7PUow==", "pool": "", "datasets": [{"name": "sdbsdb", "password": null}]}
+{
+    "host": "",
+    "username": "",
+    "password": "",
+    "pool": "",
+    "datasets": []
+}

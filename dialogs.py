@@ -2,13 +2,14 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QDialogButtonBox,
     QLabel, QPushButton, QMessageBox, QWidget, QSpacerItem, QSizePolicy
 )
-from config import CONFIG, save_config, encrypt_password
+from config import load_config, save_config, encrypt_password
 
 
 class ConfigDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Konfiguration")
+        self.config = load_config()  # Lade die aktuelle Konfiguration
         self.setModal(True)
 
         # Hauptlayout
@@ -25,8 +26,8 @@ class ConfigDialog(QDialog):
 
         # Linke Spalte: Host-IP und Benutzername
         left_layout = QVBoxLayout()
-        self.host_input = QLineEdit(CONFIG["host"])
-        self.username_input = QLineEdit(CONFIG["username"])
+        self.host_input = QLineEdit(self.config["host"])
+        self.username_input = QLineEdit(self.config["username"])
         left_layout.addWidget(QLabel("Host-IP:"))
         left_layout.addWidget(self.host_input)
         left_layout.addWidget(QLabel("Benutzername:"))
@@ -36,7 +37,7 @@ class ConfigDialog(QDialog):
         right_layout = QVBoxLayout()
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.Password)
-        self.pool_input = QLineEdit(CONFIG["pool"])
+        self.pool_input = QLineEdit(self.config["pool"])
         right_layout.addWidget(QLabel("Passwort:"))
         right_layout.addWidget(self.password_input)
         right_layout.addWidget(QLabel("Pool-Name:"))
@@ -58,9 +59,13 @@ class ConfigDialog(QDialog):
         # Dynamischer Bereich für Dataset-Felder hinzufügen
         self.main_layout.addWidget(self.datasets_widget)
 
-        # Vorhandene Datasets laden
-        for dataset in CONFIG["datasets"]:
-            self.add_dataset_field(dataset["name"], dataset["password"])
+        # Vorhandene Datasets laden oder ein leeres hinzufügen
+        if not self.config.get("datasets"):  # Falls keine Datasets vorhanden sind
+            self.add_dataset_field("", "")
+        else:
+            for dataset in self.config["datasets"]:
+                self.add_dataset_field(dataset["name"], dataset["password"])
+
 
         # + Button zum Hinzufügen neuer Datasets
         add_button = QPushButton("+ Dataset hinzufügen")
@@ -204,12 +209,12 @@ class ConfigDialog(QDialog):
 
     def accept(self):
         """Speichert die Konfiguration in der Datei."""
-        CONFIG["host"] = self.host_input.text()
-        CONFIG["username"] = self.username_input.text()
-        CONFIG["pool"] = self.pool_input.text()
+        self.config["host"] = self.host_input.text()
+        self.config["username"] = self.username_input.text()
+        self.config["pool"] = self.pool_input.text()
 
         if self.password_input.text():
-            CONFIG["password"] = encrypt_password(self.password_input.text())
+            self.config["password"] = encrypt_password(self.password_input.text())
 
         datasets = []
         for i in range(self.datasets_layout.count()):
@@ -221,7 +226,7 @@ class ConfigDialog(QDialog):
                     "name": name,
                     "password": encrypt_password(password) if password else None
                 })
-        CONFIG["datasets"] = datasets
+        self.config["datasets"] = datasets
 
-        save_config()
+        save_config(self.config)
         super().accept()
