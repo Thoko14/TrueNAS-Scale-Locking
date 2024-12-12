@@ -1,7 +1,1 @@
-{
-    "host": "",
-    "username": "",
-    "password": "",
-    "pool": "",
-    "datasets": []
-}
+{"host": "", "username": "", "password": null, "pool": "", "datasets": [{"name": "", "password": null}]}

@@ -101,9 +101,16 @@ class TrueNASManager(QMainWindow):
         self.move(window_geometry.topLeft())
 
 def initialize_app():
-    """Überprüft, ob die Konfiguration existiert, und führt ggf. das Setup durch."""
-    if not os.path.exists(CONFIG_FILE):
-        print("Keine Konfiguration gefunden. Starte Setup...")
+    """Überprüft, ob die Konfiguration existiert und gültig ist, und führt ggf. das Setup durch."""
+    from config import load_config, save_config
+    
+    try:
+        config = load_config()
+        # Überprüfen, ob die erforderlichen Felder in der Konfiguration vorhanden sind
+        if not config.get("host") or not config.get("pool") or not config.get("datasets"):
+            raise ValueError("Ungültige oder unvollständige Konfiguration.")
+    except (FileNotFoundError, ValueError):
+        print("Keine gültige Konfiguration gefunden. Starte Setup...")
         from setup import SetupDialog
         app = QApplication(sys.argv)
         setup_dialog = SetupDialog()
