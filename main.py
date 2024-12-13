@@ -12,10 +12,17 @@ class TrueNASManager(QMainWindow):
         super().__init__()
         self.config = load_config()
         self.setWindowTitle("TrueNAS Dataset Manager")
-        self.setGeometry(100, 100, 500, 400)
+        self.setGeometry(100, 100, 700, 600)
         self.center_window()
         self.init_ui()
+        
+        # Try to fetch SMART data on startup
+        try:
+            self.update_smart_table()
+        except Exception as e:
+            QMessageBox.critical(self, "Connection Error", f"Could not connect to TrueNAS: {str(e)}")
 
+    
     def init_ui(self):
         """Initialisiert die Benutzeroberfläche."""
         main_widget = QWidget()
@@ -28,6 +35,14 @@ class TrueNASManager(QMainWindow):
         datasets_label.setWordWrap(True)
         layout.addWidget(datasets_label)
 
+        # SMART Table
+        self.smart_table = QTableWidget()
+        self.smart_table.setColumnCount(4)
+        self.smart_table.setHorizontalHeaderLabels(["Drive", "Temperature", "Health", "Actions"])
+        self.smart_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        layout.addWidget(QLabel("SMART Report:"))
+        layout.addWidget(self.smart_table)
+                
         # Lock-, Unlock- und Status-Buttons
         lock_button = QPushButton("Lock Datasets")
         lock_button.clicked.connect(self.lock_datasets)
@@ -156,6 +171,29 @@ class TrueNASManager(QMainWindow):
         center_point = screen_geometry.center()
         window_geometry.moveCenter(center_point)
         self.move(window_geometry.topLeft())
+    
+    def update_smart_table(self):
+        """Fetches and updates the SMART table."""
+        smart_data = fetch_smart_data()
+        self.smart_table.setRowCount(len(smart_data))
+        for row, drive in enumerate(smart_data):
+            self.smart_table.setItem(row, 0, QTableWidgetItem(drive["name"]))
+            self.smart_table.setItem(row, 1, QTableWidgetItem(drive["temperature"]))
+            self.smart_table.setItem(row, 2, QTableWidgetItem(drive["health"]))
+
+            # Details Button
+            details_button = QPushButton("Details")
+            details_button.clicked.connect(lambda _, d=drive["name"]: self.show_smart_details(d))
+            self.smart_table.setCellWidget(row, 3, details_button)
+
+    def show_smart_details(self, drive_name):
+        """Opens a dialog showing detailed SMART data for a drive."""
+        try:
+            details = fetch_smart_details(drive_name)
+            QMessageBox.information(self, f"SMART Details for {drive_name}", details)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not fetch SMART details: {str(e)}")
+
 
 def initialize_app():
     """Überprüft, ob die Konfiguration existiert und gültig ist, und führt ggf. das Setup durch."""
