@@ -33,3 +33,42 @@ def execute_ssh_command(command, output_box):
 def check_status(output_box):
     """Führt den Statusbefehl aus und gibt die Ergebnisse aus."""
     execute_ssh_command("systemctl status", output_box)
+
+def fetch_smart_data():
+    """Fetches SMART data for all drives."""
+    command = "smartctl --scan"
+    output = execute_ssh_command(command)
+
+    drives = []
+    for line in output.splitlines():
+        if "/dev" in line:
+            drive_name = line.split()[0]
+            smart_info = execute_ssh_command(f"smartctl -a {drive_name}")
+            drives.append({
+                "name": drive_name,
+                "temperature": parse_smart_temperature(smart_info),
+                "health": parse_smart_health(smart_info),
+            })
+    return drives
+
+
+def fetch_smart_details(drive_name):
+    """Fetches detailed SMART data for a specific drive."""
+    command = f"smartctl -a {drive_name}"
+    return execute_ssh_command(command)
+
+
+def parse_smart_temperature(smart_info):
+    """Parses temperature from SMART output."""
+    for line in smart_info.splitlines():
+        if "Temperature" in line:
+            return line.split(":")[-1].strip()
+    return "N/A"
+
+
+def parse_smart_health(smart_info):
+    """Parses health status from SMART output."""
+    for line in smart_info.splitlines():
+        if "SMART overall-health" in line:
+            return line.split(":")[-1].strip()
+    return "N/A"
