@@ -8,67 +8,66 @@ from config import load_config, save_config, encrypt_password
 class ConfigDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Konfiguration")
-        self.config = load_config()  # Lade die aktuelle Konfiguration
+        self.setWindowTitle("Configuration")
+        self.config = load_config()  # Load the most recent configuration
         self.setModal(True)
 
-        # Hauptlayout
+        # Main layout
         self.main_layout = QVBoxLayout()
 
-        # Dynamischer Bereich für Dataset-Felder (zuerst initialisieren!)
+        # Dynamic area for dataset fields (initialized first)
         self.datasets_widget = QWidget()
         self.datasets_layout = QVBoxLayout(self.datasets_widget)
         self.datasets_layout.setSpacing(10)
         self.datasets_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Allgemeine Einstellungen in zwei Spalten
+        # General settings in 2 columns
         general_layout = QHBoxLayout()
 
-        # Linke Spalte: Host-IP und Benutzername
+        # Left column: Host-IP and Username
         left_layout = QVBoxLayout()
         self.host_input = QLineEdit(self.config["host"])
         self.username_input = QLineEdit(self.config["username"])
         left_layout.addWidget(QLabel("Host-IP:"))
         left_layout.addWidget(self.host_input)
-        left_layout.addWidget(QLabel("Benutzername:"))
+        left_layout.addWidget(QLabel("Username:"))
         left_layout.addWidget(self.username_input)
 
-        # Rechte Spalte: Passwort und Pool-Name
+        # Right column: Password and Pool-Name
         right_layout = QVBoxLayout()
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.Password)
         self.pool_input = QLineEdit(self.config["pool"])
-        right_layout.addWidget(QLabel("Passwort:"))
+        right_layout.addWidget(QLabel("Password:"))
         right_layout.addWidget(self.password_input)
         right_layout.addWidget(QLabel("Pool-Name:"))
         right_layout.addWidget(self.pool_input)
 
-        # Spalten zusammenführen
+        # Join columns
         general_layout.addLayout(left_layout)
-        general_layout.addSpacing(30)  # Abstand zwischen den Spalten
+        general_layout.addSpacing(30)  # Space between columns
         general_layout.addLayout(right_layout)
         self.main_layout.addLayout(general_layout)
 
-        # Fixiertes Label für Datasets
+        # Fixed label for datasets
         label_layout = QHBoxLayout()
         self.datasets_label = QLabel("Datasets:")
         label_layout.addWidget(self.datasets_label)
         label_layout.addSpacerItem(QSpacerItem(40, 10, QSizePolicy.Expanding, QSizePolicy.Minimum))
         self.main_layout.addLayout(label_layout)
 
-        # Dynamischer Bereich für Dataset-Felder hinzufügen
+        # Dynamic area for dataset fields
         self.main_layout.addWidget(self.datasets_widget)
 
-        # Vorhandene Datasets laden oder ein leeres hinzufügen
-        if not self.config.get("datasets"):  # Falls keine Datasets vorhanden sind
+        # Load existing datasets or add empty fields
+        if not self.config.get("datasets"):
             self.add_dataset_field("", "")
         else:
             for dataset in self.config["datasets"]:
                 self.add_dataset_field(dataset["name"], dataset["password"])
 
-
-        # + Button zum Hinzufügen neuer Datasets
-        add_button = QPushButton("+ Dataset hinzufügen")
+        # + Button to add a new dataset
+        add_button = QPushButton("+ Add dataset")
         add_button.clicked.connect(lambda: self.add_dataset_field("", ""))
         self.main_layout.addWidget(add_button)
 
@@ -89,42 +88,42 @@ class ConfigDialog(QDialog):
 
         self.setLayout(self.main_layout)
 
-        # Fenstergröße nach Layout-Initialisierung anpassen
+        # Adjust window size after layout initialization
         self.update_window_size()
 
     def add_dataset_field(self, name="", password=""):
-        """Fügt ein neues Dataset-Feld hinzu."""
+        """Add a new Dataset-Field."""
         dataset_layout = QHBoxLayout()
 
-        # Felder für Dataset
+        # Fields for a Dataset
         name_input = QLineEdit(name)
         password_input = QLineEdit(password)
         password_input.setEchoMode(QLineEdit.Password)
 
-        # Löschen-Button
-        delete_button = QPushButton("Löschen")
+        # Delete-Button
+        delete_button = QPushButton("Delete")
         delete_button.clicked.connect(lambda: self.confirm_and_remove_dataset_field(dataset_layout, name_input, password_input))
 
-        # Hinzufügen der Widgets zum Layout
+        # Add Widgets to Layout
         dataset_layout.addWidget(QLabel("Name:"))
         dataset_layout.addWidget(name_input)
-        dataset_layout.addWidget(QLabel("Passwort:"))
+        dataset_layout.addWidget(QLabel("Password:"))
         dataset_layout.addWidget(password_input)
         dataset_layout.addWidget(delete_button)
 
-        # Layout zum Hauptlayout hinzufügen
+        # Add Layout to Main Layout
         self.datasets_layout.addLayout(dataset_layout)
 
-        # Fenstergröße nur anpassen, wenn Resizing aktiviert ist
+        # Adjust window size
         self.update_window_size()
 
     def confirm_and_remove_dataset_field(self, layout, name_input, password_input):
-        """Zeigt eine Warnung, wenn ein Dataset gelöscht wird, das nicht leer ist."""
+        """Displays a warning when deleting a dataset that is not empty."""
         if name_input.text().strip() or password_input.text().strip():
             reply = QMessageBox.warning(
                 self,
-                "Löschen bestätigen",
-                "Dieses Dataset enthält Daten. Sind Sie sicher, dass Sie es löschen möchten?",
+                "Confirm Deletion",
+                "This dataset contains data. Are you sure you want to delete it?",
                 QMessageBox.Yes | QMessageBox.No
             )
             if reply == QMessageBox.No:
@@ -132,25 +131,25 @@ class ConfigDialog(QDialog):
         self.remove_dataset_field(layout)
 
     def clear_all_fields(self):
-        """Löscht alle Felderinhalte. Das letzte Dataset bleibt bestehen, aber dessen Inhalte werden geleert."""
+        """Clears all field contents. The last dataset remains, but its contents are cleared."""
         reply = QMessageBox.warning(
             self,
-            "Alle Felder löschen",
-            "Sind Sie sicher, dass Sie alle Felderinhalte löschen möchten? Dies kann nicht rückgängig gemacht werden.",
+            "Clear All Fields",
+            "Are you sure you want to clear all fields? This action cannot be undone.",
             QMessageBox.Yes | QMessageBox.No
         )
         if reply == QMessageBox.No:
             return
 
-        # Allgemeine Felder leeren
+        # Clear general fields
         self.host_input.clear()
         self.username_input.clear()
         self.password_input.clear()
         self.pool_input.clear()
 
-        # Datasets bearbeiten
+        # Handle datasets
         if self.datasets_layout.count() > 1:
-            # Entferne alle Dataset-Felder außer dem letzten
+            # Remove all dataset fields except the last
             while self.datasets_layout.count() > 1:
                 layout = self.datasets_layout.takeAt(0)
                 if layout:
@@ -161,54 +160,51 @@ class ConfigDialog(QDialog):
                             if child_widget:
                                 child_widget.deleteLater()
 
-        # Leere das letzte Dataset-Feld
+        # Clear the last dataset field
         last_layout = self.datasets_layout.itemAt(0)
         if last_layout:
             widget = last_layout.layout()
             if widget:
                 for i in range(widget.count()):
                     child_widget = widget.itemAt(i).widget()
-                    if isinstance(child_widget, QLineEdit):  # Nur Textfelder leeren
+                    if isinstance(child_widget, QLineEdit):  # Only clear text fields
                         child_widget.clear()
 
-        # Fenstergröße anpassen
+        # Adjust window size
         self.update_window_size()
 
-
     def remove_dataset_field(self, layout):
-        """Entfernt ein Dataset-Feld, sofern noch mindestens ein Feld übrig bleibt."""
+        """Removes a dataset field if at least one field remains."""
         if self.datasets_layout.count() <= 1:
             QMessageBox.warning(
                 self,
-                "Löschen nicht möglich",
-                "Es muss mindestens ein Dataset-Feld vorhanden sein."
+                "Cannot Delete",
+                "At least one dataset field must remain."
             )
-            return  
-          
-        """Entfernt ein Dataset-Feld und passt die Fenstergröße an."""
+            return
+
+        # Remove the dataset field and adjust the window size
         while layout.count():
             widget = layout.takeAt(0).widget()
             if widget:
                 widget.deleteLater()
         self.datasets_layout.removeItem(layout)
 
-        # Fenstergröße sofort anpassen
+        # Adjust window size immediately
         self.update_window_size()
 
     def update_window_size(self):
-        """Passt die Fensterhöhe dynamisch an, hält aber die Breite konstant."""
+        """Dynamically adjusts the window height while keeping the width constant."""
         self.datasets_widget.adjustSize()
         self.adjustSize()
 
-        # Fixiere die Breite des Fensters
+        # Fix the window width
         current_width = self.width()
         new_height = self.sizeHint().height()
         self.resize(current_width, new_height)
 
-
-
     def accept(self):
-        """Speichert die Konfiguration in der Datei."""
+        """Saves the configuration to the file."""
         self.config["host"] = self.host_input.text()
         self.config["username"] = self.username_input.text()
         self.config["pool"] = self.pool_input.text()
