@@ -1,11 +1,11 @@
 import json
 from cryptography.fernet import Fernet
 
-# Verschlüsselungsschlüssel
+# Encryption Key
 KEY_FILE = "encryption_key.key"
 CONFIG_FILE = "config.json"
 
-# Erzeuge oder lade einen Verschlüsselungsschlüssel
+# Generate or load an encryption key
 def get_encryption_key():
     try:
         with open(KEY_FILE, "rb") as key_file:
@@ -20,7 +20,7 @@ ENCRYPTION_KEY = get_encryption_key()
 FERNET = Fernet(ENCRYPTION_KEY)
 
 def load_config():
-    """Lädt die Konfigurationsdatei."""
+    """Loads the configuration file."""
     try:
         with open(CONFIG_FILE, "r") as file:
             return json.load(file)
@@ -33,13 +33,13 @@ def load_config():
             "datasets": []
         }
 
-# Konfiguration speichern
+# Save configuration
 def save_config(config):
     """Speichert die Konfigurationsdatei."""
     with open(CONFIG_FILE, "w") as file:
         json.dump(config, file, indent=4)
 
-# Verschlüsseln und Entschlüsseln von Passwörtern
+# Encrypt and decrypt passwords
 def encrypt_password(password):
     return FERNET.encrypt(password.encode()).decode()
 
