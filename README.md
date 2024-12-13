@@ -1,7 +1,7 @@
 # TrueNAS Dataset Manager
 
 ## Overview
-The TrueNAS Dataset Manager is a Python-based GUI application for managing TrueNAS Scale datasets. It simplifies locking, unlocking, and checking the status of datasets and provides additional features such as server reboot/shutdown and viewing system performance metrics.
+The TrueNAS Dataset Manager is a Python-based GUI application for managing TrueNAS Scale datasets. It simplifies locking, unlocking, and checking the status of datasets and provides additional features such as server reboot/shutdown.
 
 ## Features
 - **Lock and Unlock Datasets:** Secure datasets with encryption or make them accessible when needed.
