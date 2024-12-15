@@ -97,6 +97,7 @@ class TrueNASManager(QMainWindow):
 
         # Settings Menu
         settings_menu = menu_bar.addMenu("Settings")
+        
         config_action = QAction("Configuration", self)
         config_action.triggered.connect(self.open_config_dialog)
         settings_menu.addAction(config_action)
@@ -107,6 +108,7 @@ class TrueNASManager(QMainWindow):
 
         # System Control Menu
         system_menu = menu_bar.addMenu("System Control")
+        
         reboot_action = QAction("Reboot", self)
         reboot_action.triggered.connect(self.confirm_reboot)
         system_menu.addAction(reboot_action)
@@ -114,6 +116,17 @@ class TrueNASManager(QMainWindow):
         shutdown_action = QAction("Shutdown", self)
         shutdown_action.triggered.connect(self.confirm_shutdown)
         system_menu.addAction(shutdown_action)
+
+        # Log Menu
+        log_menu = menu_bar.addMenu("Logs")
+        
+        serverlog_action = QAction("Server Log", self)
+        serverlog_action.triggered.connect(self.view_serverlog)
+        system_menu.addAction(serverlog_action)
+
+        applog_action = QAction("App Log", self)
+        applog_action.triggered.connect(self.view_applog)
+        system_menu.addAction(applog_action)
 
     def center_window(self):
         """Centers the main window on the screen."""
