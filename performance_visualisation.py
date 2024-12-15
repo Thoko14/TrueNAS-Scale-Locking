@@ -1,9 +1,10 @@
 import psutil
 from PyQt5.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QWidget
-from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
+from pyqtgraph import PlotWidget, plot
 
-class PerformanceVisualization(QWidget):
+
+class PerformanceVisualisation(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 

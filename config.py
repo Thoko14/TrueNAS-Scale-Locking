@@ -9,12 +9,17 @@ CONFIG_FILE = "config.json"
 def get_encryption_key():
     try:
         with open(KEY_FILE, "rb") as key_file:
-            return key_file.read()
-    except FileNotFoundError:
+            key = key_file.read()
+            # Validate key
+            if len(key) != 44:  # Fernet keys are 44 bytes in base64
+                raise ValueError("Invalid key length.")
+            return key
+    except (FileNotFoundError, ValueError):
         key = Fernet.generate_key()
         with open(KEY_FILE, "wb") as key_file:
             key_file.write(key)
         return key
+
 
 ENCRYPTION_KEY = get_encryption_key()
 FERNET = Fernet(ENCRYPTION_KEY)

@@ -1,3 +1,5 @@
 paramiko==2.11.0
 PyQt5==5.15.9
 cryptography==41.0.3
+psutil==5.9.6
+pyqtgraph==0.13.3

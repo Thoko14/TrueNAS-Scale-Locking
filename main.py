@@ -1,12 +1,14 @@
 import sys
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QLabel, QPushButton, QWidget, QAction, QMessageBox, QTextEdit, QInputDialog
+    QApplication, QMainWindow, QTableWidget, QHeaderView,QTableWidgetItem,
+    QVBoxLayout, QLabel, QPushButton, QWidget, QAction, QMessageBox, QTextEdit, QInputDialog
 )
+from PyQt5.QtCore import QTimer
 from config import load_config, decrypt_password
-from ssh_commands import execute_ssh_command
+from ssh_commands import execute_ssh_command, fetch_smart_data, fetch_smart_details
 from dialogs import ConfigDialog
 from reset_utils import reset_app
-from performance_visualization import PerformanceVisualization
+from performance_visualisation import PerformanceVisualisation
 
 class TrueNASManager(QMainWindow):
     def __init__(self):
@@ -36,10 +38,10 @@ class TrueNASManager(QMainWindow):
         datasets_label.setWordWrap(True)
         layout.addWidget(datasets_label)
 
-        # Add Performance Visualization
-        self.performance_visualization = PerformanceVisualization()
-        self.layout.addWidget(self.performance_visualization)
-        main_widget.setLayout(self.layout)
+        # Add Performance Visualisation
+        self.performance_visualisation = PerformanceVisualisation()
+        layout.addWidget(self.performance_visualisation)
+        main_widget.setLayout(layout)
         self.setCentralWidget(main_widget)
 
         # Set up a timer to update metrics periodically
@@ -64,14 +66,14 @@ class TrueNASManager(QMainWindow):
         unlock_button.clicked.connect(self.unlock_datasets)
         layout.addWidget(unlock_button)
 
-        status_button = QPushButton("Status prüfen")
+        status_button = QPushButton("Check Status")
         status_button.clicked.connect(self.check_status)
         layout.addWidget(status_button)
 
         # Ausgabe-Box
         self.output_box = QTextEdit()
         self.output_box.setReadOnly(True)
-        layout.addWidget(QLabel("Ausgabe:"))
+        layout.addWidget(QLabel("Output:"))
         layout.addWidget(self.output_box)
 
         # Menüleiste erstellen
@@ -104,7 +106,7 @@ class TrueNASManager(QMainWindow):
 
     def update_performance_metrics(self):
         """Updates the performance metrics."""
-        self.performance_visualization.update_metrics()
+        self.performance_visualisation.update_metrics()
         
     def lock_datasets(self):
         """Verschlüsselt die Datasets."""
