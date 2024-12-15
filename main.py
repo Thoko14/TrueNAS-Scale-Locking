@@ -4,8 +4,9 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QLabel, QPushButton, QWidget, QTabWidget, QStatusBar, QInputDialog, QAction, QMessageBox, QHBoxLayout
 )
 from PyQt5.QtCore import QTimer
+from PyQt5.QtGui import QGuiApplication
 from config import load_config, save_config, decrypt_password
-from ssh_commands import execute_ssh_command
+from ssh_commands import execute_ssh_command, fetch_datasets, fetch_smart_data, unlock_dataset, lock_dataset, reboot_system, shutdown_system
 from performance_visualisation import PerformanceVisualisation
 from dialogs import ConfigDialog
 from reset_utils import reset_app
@@ -17,7 +18,10 @@ class TrueNASManager(QMainWindow):
         super().__init__()
         self.config = load_config()
         self.setWindowTitle("TrueNAS Dataset Manager")
-        self.setGeometry(100, 100, 700, 500)
+        self.setGeometry(100, 100, 900, 600)
+
+        # Center the main window
+        self.center_window()
 
         # Initialize UI and Status Bar
         self.init_ui()
@@ -25,16 +29,16 @@ class TrueNASManager(QMainWindow):
         self.setStatusBar(self.statusBar)
         self.statusBar.showMessage("Ready")  # Initial message
 
-        # Periodic updates
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.refresh_data)
-        self.timer.start(10000)  # Refresh every 10 seconds
+        # Periodic updates to Disks and Datasets (of needed)
+        #self.timer = QTimer()
+        #self.timer.timeout.connect(self.refresh_data)
+        #self.timer.start(10000)  # Refresh every 10 seconds
 
         # Performance visualization update timer
         self.perf_timer = QTimer()
         self.perf_timer.timeout.connect(self.performance_visualisation.update_metrics)
         self.perf_timer.start(1000)  # Update performance metrics every 1 second
-        
+
         # Initial data load
         try:
             self.refresh_data()
@@ -52,7 +56,7 @@ class TrueNASManager(QMainWindow):
         self.performance_visualisation = PerformanceVisualisation()
         perf_layout = QHBoxLayout()
         perf_layout.addWidget(self.performance_visualisation)
-        self.performance_visualisation.setFixedHeight(200)  # Limit height of the visualizations
+        self.performance_visualisation.setFixedHeight(300)  # Limit height of the visualizations
         main_layout.addLayout(perf_layout)
 
         # Create Tab Widget
@@ -62,6 +66,10 @@ class TrueNASManager(QMainWindow):
         disks_tab = QWidget()
         disks_layout = QVBoxLayout(disks_tab)
         disks_layout.addWidget(QLabel("SMART Report:"))
+        # Add Refresh Button
+        refresh_smart_button = QPushButton("Refresh SMART Information")
+        refresh_smart_button.clicked.connect(self.update_smart_table)  # Connect to SMART update
+        disks_layout.addWidget(refresh_smart_button)
         self.smart_table = self.create_smart_table()
         disks_layout.addWidget(self.smart_table)
         self.tab_widget.addTab(disks_tab, "Disks")
@@ -70,6 +78,10 @@ class TrueNASManager(QMainWindow):
         datasets_tab = QWidget()
         datasets_layout = QVBoxLayout(datasets_tab)
         datasets_layout.addWidget(QLabel("Dataset Management:"))
+        # Add Refresh Button
+        refresh_datasets_button = QPushButton("Refresh Dataset Information")
+        refresh_datasets_button.clicked.connect(self.update_datasets_table)  # Connect to dataset update
+        datasets_layout.addWidget(refresh_datasets_button)
         self.datasets_table = self.create_datasets_table()
         datasets_layout.addWidget(self.datasets_table)
         self.tab_widget.addTab(datasets_tab, "Datasets")
@@ -103,15 +115,26 @@ class TrueNASManager(QMainWindow):
         shutdown_action.triggered.connect(self.confirm_shutdown)
         system_menu.addAction(shutdown_action)
 
+    def center_window(self):
+        """Centers the main window on the screen."""
+        screen_geometry = QGuiApplication.primaryScreen().geometry()  # Get the screen's geometry
+        window_geometry = self.frameGeometry()  # Get the window's geometry
+        center_point = screen_geometry.center()  # Find the screen's center
+        window_geometry.moveCenter(center_point)  # Move the window's center to the screen's center
+        self.move(window_geometry.topLeft())  # Move the window to its new position
+
     def refresh_data(self):
         """Fetches and updates both tables."""
         self.statusBar.showMessage("Refreshing SMART and dataset information...")
         try:
             self.update_smart_table()
-            self.update_datasets_table()
-            self.statusBar.showMessage("Data refreshed successfully.", 10000)
         except Exception as e:
-            self.statusBar.showMessage(f"Error refreshing data: {str(e)}", 10000)
+            self.statusBar.showMessage(f"Error refreshing SMART data: {str(e)}", 10000)
+
+        try:
+            self.update_datasets_table()
+        except Exception as e:
+            self.statusBar.showMessage(f"Error refreshing dataset information: {str(e)}", 10000)
 
     def create_smart_table(self):
         """Creates the SMART table for disk information."""
@@ -129,25 +152,81 @@ class TrueNASManager(QMainWindow):
         table.horizontalHeader().setStretchLastSection(True)
         return table
 
+    def update_smart_table(self):
+        """Fetches and updates the SMART table."""
+        self.statusBar.showMessage("Refreshing SMART data...")
+        try:
+            smart_data = fetch_smart_data()
+            self.smart_table.setRowCount(len(smart_data))
+            for row, drive in enumerate(smart_data):
+                self.smart_table.setItem(row, 0, QTableWidgetItem(drive["name"]))
+                self.smart_table.setItem(row, 1, QTableWidgetItem(drive["temperature"]))
+                self.smart_table.setItem(row, 2, QTableWidgetItem(drive["health"]))
+
+                # Add details button
+                details_button = QPushButton("Details")
+                details_button.clicked.connect(lambda _, d=drive["name"]: self.show_smart_details(d))
+                self.smart_table.setCellWidget(row, 3, details_button)
+            self.statusBar.showMessage("SMART data refreshed successfully.", 5000)
+        except Exception as e:
+            self.statusBar.showMessage(f"Error refreshing SMART data: {str(e)}", 10000)
+
+
+    def update_datasets_table(self):
+        """Fetches and updates the datasets table."""
+        self.statusBar.showMessage("Refreshing dataset information...")
+        try:
+            datasets = fetch_datasets()
+            self.datasets_table.setRowCount(len(datasets))
+            for row, dataset in enumerate(datasets):
+                dataset_name = dataset["name"]
+                key_status = dataset["keystatus"]
+
+                self.datasets_table.setItem(row, 0, QTableWidgetItem(dataset_name))
+
+                # Encryption State
+                state_label = QLabel("Locked 🔒" if key_status == "unavailable" else "Unlocked 🔓")
+                state_label.setStyleSheet("color: red;" if key_status == "unavailable" else "color: green;")
+                self.datasets_table.setCellWidget(row, 1, state_label)
+
+                # Action Button
+                action_button = QPushButton("Unlock" if key_status == "unavailable" else "Lock")
+                action_button.clicked.connect(lambda _, d=dataset_name, k=key_status: self.toggle_encryption_state(d, k))
+                self.datasets_table.setCellWidget(row, 2, action_button)
+            self.statusBar.showMessage("Dataset information refreshed successfully.", 5000)
+        except Exception as e:
+            self.statusBar.showMessage(f"Error refreshing dataset information: {str(e)}", 10000)
+
+    def toggle_encryption_state(self, dataset_name, key_status):
+        """Toggles the encryption state of a dataset."""
+        self.statusBar.showMessage(f"Processing {dataset_name}...")
+        try:
+            if key_status == "unavailable":
+                password, ok = QInputDialog.getText(self, "Password Required", f"Enter password for {dataset_name}:", QInputDialog.Password)
+                if not ok or not password:
+                    self.statusBar.showMessage("Unlock canceled.", 3000)
+                    return
+                unlock_dataset(dataset_name, password)
+                self.statusBar.showMessage(f"Dataset {dataset_name} unlocked successfully.", 5000)
+            else:
+                lock_dataset(dataset_name)
+                self.statusBar.showMessage(f"Dataset {dataset_name} locked successfully.", 5000)
+
+            self.update_datasets_table()
+        except Exception as e:
+            self.statusBar.showMessage(f"Error processing {dataset_name}: {str(e)}", 10000)
+
+    def show_smart_details(self, drive_name):
+        """Displays detailed SMART data for a specific drive."""
+        QMessageBox.information(self, "SMART Details", f"Details for drive {drive_name}")
+
     def open_config_dialog(self):
         """Opens the configuration dialog."""
         config_dialog = ConfigDialog(self)
         if config_dialog.exec_():
             self.config = load_config()
             self.statusBar.showMessage("Configuration updated.", 10000)
-
-    def confirm_reset(self):
-        """Confirms and resets the application."""
-        reply = QMessageBox.warning(
-            self,
-            "Reset Application",
-            "Are you sure you want to reset the application? All configurations will be deleted.",
-            QMessageBox.Yes | QMessageBox.No
-        )
-        if reply == QMessageBox.Yes:
-            reset_app()
-            self.statusBar.showMessage("Application reset successfully.", 10000)
-
+    
     def confirm_reboot(self):
         """Confirms and reboots the system."""
         reply = QMessageBox.warning(
@@ -158,7 +237,11 @@ class TrueNASManager(QMainWindow):
         )
         if reply == QMessageBox.Yes:
             self.statusBar.showMessage("Rebooting system...", 3000)
-            execute_ssh_command("reboot")
+            try:
+                reboot_system()
+                self.statusBar.showMessage("System is rebooting.", 5000)
+            except RuntimeError as e:
+                self.statusBar.showMessage(f"Reboot failed: {str(e)}", 10000)
 
     def confirm_shutdown(self):
         """Confirms and shuts down the system."""
@@ -170,18 +253,36 @@ class TrueNASManager(QMainWindow):
         )
         if reply == QMessageBox.Yes:
             self.statusBar.showMessage("Shutting down system...", 3000)
-            execute_ssh_command("shutdown now")
+            try:
+                shutdown_system()
+                self.statusBar.showMessage("System is shutting down.", 5000)
+            except RuntimeError as e:
+                self.statusBar.showMessage(f"Shutdown failed: {str(e)}", 10000)
+   
+    def confirm_reset(self):
+        """Confirms and resets the application."""
+        reply = QMessageBox.warning(
+            self,
+            "Reset Application",
+            "Are you sure you want to reset the application? All configurations will be deleted.",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            try:
+                reset_app()  # Ensure this function is implemented in reset_utils.py
+                self.statusBar.showMessage("Application reset successfully.", 10000)
+            except Exception as e:
+                self.statusBar.showMessage(f"Error during reset: {str(e)}", 10000)
+
 
 
 def initialize_app():
     """Checks if the configuration exists and is valid; launches setup if needed."""
     try:
-        # Attempt to load the configuration
         config = load_config()
         if not config.get("host") or not config.get("pool") or not config.get("datasets"):
             raise ValueError("Invalid or incomplete configuration.")
     except (FileNotFoundError, ValueError) as e:
-        # Launch setup dialog if configuration is missing or invalid
         from setup import SetupDialog
         app = QApplication(sys.argv)
         QMessageBox.warning(None, "Configuration Missing", f"Error: {str(e)}\nThe setup dialog will now be launched.")
@@ -191,68 +292,6 @@ def initialize_app():
         else:
             sys.exit("Setup canceled by the user. Exiting.")
 
-def update_smart_table(self):
-    """Fetches and updates the SMART table."""
-    try:
-        smart_data = fetch_smart_data()  # Fetch SMART data from SSH
-        self.smart_table.setRowCount(len(smart_data))
-        for row, drive in enumerate(smart_data):
-            self.smart_table.setItem(row, 0, QTableWidgetItem(drive["name"]))
-            self.smart_table.setItem(row, 1, QTableWidgetItem(drive["temperature"]))
-            self.smart_table.setItem(row, 2, QTableWidgetItem(drive["health"]))
-
-            # Add details button
-            details_button = QPushButton("Details")
-            details_button.clicked.connect(lambda _, d=drive["name"]: self.show_smart_details(d))
-            self.smart_table.setCellWidget(row, 3, details_button)
-        self.statusBar.showMessage("SMART data updated successfully.", 10000)
-    except Exception as e:
-        self.statusBar.showMessage(f"Error updating SMART data: {str(e)}", 10000)
-
-def update_datasets_table(self):
-    """Fetches and updates the datasets table."""
-    try:
-        datasets = fetch_datasets()  # Fetch dataset information from SSH
-        self.datasets_table.setRowCount(len(datasets))
-        for row, dataset in enumerate(datasets):
-            dataset_name = dataset["name"]
-            key_status = dataset["keystatus"]
-
-            # Dataset Name
-            self.datasets_table.setItem(row, 0, QTableWidgetItem(dataset_name))
-
-            # Encryption State
-            state_label = QLabel("Locked 🔒" if key_status == "unavailable" else "Unlocked 🔓")
-            state_label.setStyleSheet("color: red;" if key_status == "unavailable" else "color: green;")
-            self.datasets_table.setCellWidget(row, 1, state_label)
-
-            # Action Button
-            action_button = QPushButton("Unlock" if key_status == "unavailable" else "Lock")
-            action_button.setStyleSheet("background-color: red;" if key_status == "unavailable" else "background-color: green;")
-            action_button.clicked.connect(lambda _, d=dataset_name, k=key_status: self.toggle_encryption_state(d, k))
-            self.datasets_table.setCellWidget(row, 2, action_button)
-        self.statusBar.showMessage("Dataset information updated successfully.", 3000)
-    except Exception as e:
-        self.statusBar.showMessage(f"Error updating dataset information: {str(e)}", 10000)
-
-def toggle_encryption_state(self, dataset_name, key_status):
-    """Toggles the encryption state of a dataset."""
-    self.statusBar.showMessage(f"Processing {dataset_name}...")
-    try:
-        if key_status == "unavailable":  # Locked, attempt to unlock
-            password, ok = QInputDialog.getText(self, "Password Required", f"Enter password for {dataset_name}:", QInputDialog.Password)
-            if not ok or not password:
-                self.statusBar.showMessage("Unlock canceled.", 3000)
-                return
-            unlock_dataset(dataset_name, password)
-            self.statusBar.showMessage(f"Dataset {dataset_name} unlocked successfully.", 5000)
-        else:  # Unlocked, lock the dataset
-            lock_dataset(dataset_name)
-            self.statusBar.showMessage(f"Dataset {dataset_name} locked successfully.", 5000)
-
-        self.update_datasets_table()  # Refresh the table
-    except Exception as e:
-        self.statusBar.showMessage(f"Error processing {dataset_name}: {str(e)}", 10000)
 
 def main():
     """Starts the application."""

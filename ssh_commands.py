@@ -1,10 +1,14 @@
 import paramiko
+import logging
 from config import load_config, decrypt_password
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 def execute_ssh_command(command):
     """Executes an SSH command on the TrueNAS server and returns the output."""
     client = None
     try:
+        logging.info(f"Executing command: {command}")
         config = load_config()
         hostname = config.get("host")
         username = config.get("username", "root")
@@ -24,14 +28,18 @@ def execute_ssh_command(command):
         error = stderr.read().decode()
 
         if error:
+            logging.error(f"Error executing command: {error}")
             raise RuntimeError(f"SSH Command Error: {error}")
 
+        logging.info(f"Command output: {output}")
         return output
     except Exception as e:
+        logging.error(f"SSH Execution Failed: {str(e)}")
         raise RuntimeError(f"SSH Execution Failed: {str(e)}")
     finally:
         if client:
             client.close()
+
 
 def check_status():
     """Executes the system status command and returns the results."""
@@ -99,3 +107,11 @@ def unlock_dataset(dataset_name, password):
     """Unlocks a specific dataset using the provided password."""
     command = f"echo {password} | zfs load-key -r {dataset_name}"
     execute_ssh_command(command)
+
+def reboot_system():
+    """Reboots the TrueNAS server."""
+    return execute_ssh_command("reboot")
+
+def shutdown_system():
+    """Shuts down the TrueNAS server."""
+    return execute_ssh_command("shutdown now")

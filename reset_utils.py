@@ -12,26 +12,28 @@ DEFAULT_CONFIG = {
 CONFIG_FILE = "config.json"
 SETUP_STATUS_FILE = "setup_status.json"
 
-def reset_app(output_box):
-    """Setzt die App zurück und schreibt die Ausgabe in die output_box."""
-    if output_box is None:
-        raise ValueError("output_box darf nicht None sein!")
+def reset_app():
+    """Resets the application and returns a list of status messages."""
+    messages = []
 
-    output_box.append("Starte Reset...")
+    try:
+        # Reset configuration file
+        if os.path.exists(CONFIG_FILE):
+            messages.append(f"Deleting existing configuration: {CONFIG_FILE}")
+            os.remove(CONFIG_FILE)
+        with open(CONFIG_FILE, "w") as file:
+            json.dump(DEFAULT_CONFIG, file, indent=4)
+        messages.append(f"Default configuration saved in {CONFIG_FILE}.")
 
-    # Reset der Konfigurationsdatei
-    if os.path.exists(CONFIG_FILE):
-        output_box.append(f"Lösche bestehende Konfiguration: {CONFIG_FILE}")
-        os.remove(CONFIG_FILE)
-    with open(CONFIG_FILE, "w") as file:
-        json.dump(DEFAULT_CONFIG, file, indent=4)
-    output_box.append(f"Standardkonfiguration gespeichert in {CONFIG_FILE}.")
+        # Reset setup status file
+        if os.path.exists(SETUP_STATUS_FILE):
+            messages.append(f"Deleting existing setup status file: {SETUP_STATUS_FILE}")
+            os.remove(SETUP_STATUS_FILE)
+        else:
+            messages.append(f"No setup status file found ({SETUP_STATUS_FILE}).")
 
-    # Reset der Setup-Status-Datei
-    if os.path.exists(SETUP_STATUS_FILE):
-        output_box.append(f"Lösche bestehende Setup-Status-Datei: {SETUP_STATUS_FILE}")
-        os.remove(SETUP_STATUS_FILE)
-    else:
-        output_box.append(f"Keine Setup-Status-Datei gefunden ({SETUP_STATUS_FILE}).")
+        messages.append("Reset complete. The app has been restored to its original state.")
+    except Exception as e:
+        messages.append(f"Error during reset: {str(e)}")
 
-    output_box.append("Reset abgeschlossen. Die App wurde in den Originalzustand zurückgesetzt.")
+    return messages

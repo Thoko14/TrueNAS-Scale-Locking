@@ -14,7 +14,7 @@ class PerformanceVisualisation(QWidget):
         self.visualization_layout = QHBoxLayout()
 
         # CPU Utilization
-        self.cpu_plot = PlotWidget(title="CPU Usage")
+        self.cpu_plot = PlotWidget()
         self.cpu_plot.showGrid(x=True, y=True)
         self.cpu_data = [0] * 60
         self.cpu_curve = self.cpu_plot.plot(self.cpu_data, pen=pg.mkPen('b', width=2))
@@ -24,7 +24,7 @@ class PerformanceVisualisation(QWidget):
         self.visualization_layout.addLayout(cpu_layout)
 
         # Disk I/O
-        self.disk_plot = PlotWidget(title="Disk I/O")
+        self.disk_plot = PlotWidget()
         self.disk_plot.showGrid(x=True, y=True)
         self.disk_read_data = [0] * 60
         self.disk_write_data = [0] * 60
@@ -36,7 +36,7 @@ class PerformanceVisualisation(QWidget):
         self.visualization_layout.addLayout(disk_layout)
 
         # Network Throughput
-        self.network_plot = PlotWidget(title="Network Throughput")
+        self.network_plot = PlotWidget()
         self.network_plot.showGrid(x=True, y=True)
         self.network_in_data = [0] * 60
         self.network_out_data = [0] * 60
