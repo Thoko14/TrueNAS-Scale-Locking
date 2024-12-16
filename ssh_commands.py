@@ -67,10 +67,15 @@ def fetch_smart_details(drive_name):
     command = f"smartctl -a {drive_name}"
     return execute_ssh_command(command)
 
-def fetch_server_log(log_path="/var/log/messages"):
-    """Fetches the specified log file from the TrueNAS server."""
-    command = f"cat {log_path}"  # Command to read the log file
-    return execute_ssh_command(command)
+def fetch_combined_server_logs():
+    """Fetches combined logs from /var/log/messages and /var/log/alerts.log."""
+    try:
+        # Combine messages and alerts logs
+        command = "cat /var/log/messages /var/log/alerts.log"
+        combined_logs = execute_ssh_command(command)
+        return combined_logs
+    except Exception as e:
+        raise RuntimeError(f"Error fetching server logs: {str(e)}")
 
 def parse_smart_temperature(smart_info):
     """Parses temperature from SMART output."""
