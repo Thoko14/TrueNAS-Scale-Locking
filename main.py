@@ -51,6 +51,9 @@ class TrueNASManager(QMainWindow):
         self.perf_timer.timeout.connect(self.performance_visualisation.update_metrics)
         self.perf_timer.start(1000)  # Update performance metrics every 1 second
 
+        # Check for new alerts
+        self.check_new_alerts()
+       
         # Initial data load
         try:
             self.refresh_data()
@@ -142,6 +145,10 @@ class TrueNASManager(QMainWindow):
         serverlog_action.triggered.connect(self.view_serverlog)
         log_menu.addAction(serverlog_action)
 
+    def add_log_alert_indicator(self):
+        """Adds a red exclamation mark to the Logs menu if there are new alerts."""
+        self.log_menu.setTitle("Logs ❗")  # Update menu title with an indicator
+    
     def center_window(self):
         """Centers the main window on the screen."""
         screen_geometry = QGuiApplication.primaryScreen().geometry()  # Get the screen's geometry
@@ -150,6 +157,18 @@ class TrueNASManager(QMainWindow):
         window_geometry.moveCenter(center_point)  # Move the window's center to the screen's center
         self.move(window_geometry.topLeft())  # Move the window to its new position
 
+    def check_new_alerts(self):
+        """Checks for new alerts and updates the Log menu."""
+        try:
+            last_check_time = load_last_alert_check_time()
+            new_alerts = fetch_new_alerts(last_check_time)
+    
+            if new_alerts.strip():  # If there are any new alerts
+                self.add_log_alert_indicator()
+                save_last_alert_check_time(time.time())  # Update last check time
+        except Exception as e:
+            self.statusBar.showMessage(f"Error checking for alerts: {str(e)}", 5000)
+    
     def view_applog(self):
         """Opens the application log in a custom log viewer dialog."""
         try:
@@ -168,15 +187,17 @@ class TrueNASManager(QMainWindow):
     def view_serverlog(self):
         """Fetches and displays the combined server log."""
         try:
-            # Fetch combined logs
             combined_logs = fetch_combined_server_logs()
     
             # Show logs in a custom dialog
             log_dialog = LogViewerDialog("Server Log", combined_logs, self)
             log_dialog.exec_()
+    
+            # Clear the indicator once viewed
+            self.log_menu.setTitle("Logs")
         except Exception as e:
             self.statusBar.showMessage(f"Error fetching server log: {str(e)}", 10000)
- 
+
     def refresh_data(self):
         """Fetches and updates both tables."""
         self.statusBar.showMessage("Refreshing SMART and dataset information...")
