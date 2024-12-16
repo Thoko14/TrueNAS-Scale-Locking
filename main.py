@@ -146,6 +146,23 @@ class TrueNASManager(QMainWindow):
         window_geometry.moveCenter(center_point)  # Move the window's center to the screen's center
         self.move(window_geometry.topLeft())  # Move the window to its new position
 
+    def view_applog(self):
+        """Opens the application log in a text viewer."""
+        try:
+            with open("app.log", "r") as log_file:
+                log_contents = log_file.read()
+    
+            # Display the log in a QMessageBox
+            log_dialog = QMessageBox(self)
+            log_dialog.setWindowTitle("Application Log")
+            log_dialog.setText(log_contents)
+            log_dialog.setStandardButtons(QMessageBox.Ok)
+            log_dialog.exec_()
+        except FileNotFoundError:
+            self.statusBar.showMessage("App log file not found.", 5000)
+        except Exception as e:
+            self.statusBar.showMessage(f"Error opening app log: {str(e)}", 10000)
+    
     def refresh_data(self):
         """Fetches and updates both tables."""
         self.statusBar.showMessage("Refreshing SMART and dataset information...")
