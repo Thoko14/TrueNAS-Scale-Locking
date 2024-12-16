@@ -67,6 +67,11 @@ def fetch_smart_details(drive_name):
     command = f"smartctl -a {drive_name}"
     return execute_ssh_command(command)
 
+def fetch_server_log(log_path="/var/log/messages"):
+    """Fetches the specified log file from the TrueNAS server."""
+    command = f"cat {log_path}"  # Command to read the log file
+    return execute_ssh_command(command)
+
 def parse_smart_temperature(smart_info):
     """Parses temperature from SMART output."""
     for line in smart_info.splitlines():
