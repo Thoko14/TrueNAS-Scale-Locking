@@ -172,25 +172,18 @@ class TrueNASManager(QMainWindow):
     def view_applog(self):
         """Opens the application log in a custom log viewer dialog."""
         try:
-            # Read the app log file
-            with open("app.log", "r") as log_file:
-                log_content = log_file.read()
-    
-            # Show logs in a custom dialog
-            log_dialog = LogViewerDialog("Application Log", log_content, self)
+            log_dialog = LogViewerDialog("Application Log", "app.log", is_server_log=False, parent=self)
             log_dialog.exec_()
-        except FileNotFoundError:
-            self.statusBar.showMessage("App log file not found.", 5000)
         except Exception as e:
             self.statusBar.showMessage(f"Error opening app log: {str(e)}", 10000)
-    
+
     def view_serverlog(self):
         """Fetches and displays the combined server log."""
         try:
             combined_logs = fetch_combined_server_logs()
     
             # Show logs in a custom dialog
-            log_dialog = LogViewerDialog("Server Log", combined_logs, self)
+            log_dialog = LogViewerDialog("Server Log", combined_logs, is_server_log=True, parent=self)
             log_dialog.exec_()
     
             # Clear the indicator once viewed
