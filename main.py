@@ -1,6 +1,7 @@
 import sys
 import logging
 from log_viewer import LogViewerDialog
+from timestamp_utils import save_last_alert_check_time, load_last_alert_check_time
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QTableWidget, QHeaderView, QTableWidgetItem,
     QVBoxLayout, QLabel, QPushButton, QWidget, QTabWidget, QStatusBar, QInputDialog, QAction, QMessageBox, QHBoxLayout
