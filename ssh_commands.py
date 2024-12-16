@@ -1,5 +1,6 @@
 import paramiko
 import logging
+import time
 from config import load_config, decrypt_password
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -76,6 +77,16 @@ def fetch_combined_server_logs():
         return combined_logs
     except Exception as e:
         raise RuntimeError(f"Error fetching server logs: {str(e)}")
+
+def fetch_new_alerts(last_check_time):
+    """Fetches alerts from the server log since the last check."""
+    try:
+        # Using `awk` to filter entries based on the timestamp
+        command = f"awk -v last_check={last_check_time} '$0 > last_check' /var/log/alerts.log"
+        new_alerts = execute_ssh_command(command)
+        return new_alerts
+    except Exception as e:
+        raise RuntimeError(f"Error fetching new alerts: {str(e)}")
 
 def parse_smart_temperature(smart_info):
     """Parses temperature from SMART output."""
