@@ -1,4 +1,5 @@
 import sys
+import logging
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QTableWidget, QHeaderView, QTableWidgetItem,
     QVBoxLayout, QLabel, QPushButton, QWidget, QTabWidget, QStatusBar, QInputDialog, QAction, QMessageBox, QHBoxLayout
@@ -12,6 +13,15 @@ from dialogs import ConfigDialog
 from reset_utils import reset_app
 from setup import SetupDialog
 
+# Configure logging
+logging.basicConfig(
+    filename="app.log",  # Log file name
+    level=logging.INFO,  # Log level
+    format="%(asctime)s - %(levelname)s - %(message)s"  # Log format
+)
+
+# Example usage
+logging.info("Application started.")
 
 class TrueNASManager(QMainWindow):
     def __init__(self):
@@ -304,7 +314,6 @@ def initialize_app():
             print("Setup completed successfully. Application will start.")
         else:
             sys.exit("Setup canceled by the user. Exiting.")
-
 
 def main():
     """Starts the application."""
