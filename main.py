@@ -1,5 +1,6 @@
 import sys
 import logging
+from log_viewer import LogViewerDialog
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QTableWidget, QHeaderView, QTableWidgetItem,
     QVBoxLayout, QLabel, QPushButton, QWidget, QTabWidget, QStatusBar, QInputDialog, QAction, QMessageBox, QHBoxLayout
@@ -134,12 +135,11 @@ class TrueNASManager(QMainWindow):
         applog_action = QAction("App Log", self)
         applog_action.triggered.connect(self.view_applog)
         log_menu.addAction(applog_action)
-        
+
         # Server Log
         serverlog_action = QAction("Server Log", self)
         serverlog_action.triggered.connect(self.view_serverlog)
         log_menu.addAction(serverlog_action)
-
 
     def center_window(self):
         """Centers the main window on the screen."""
@@ -150,16 +150,14 @@ class TrueNASManager(QMainWindow):
         self.move(window_geometry.topLeft())  # Move the window to its new position
 
     def view_applog(self):
-        """Opens the application log in a text viewer."""
+        """Opens the application log in a custom log viewer dialog."""
         try:
+            # Read the app log file
             with open("app.log", "r") as log_file:
-                log_contents = log_file.read()
+                log_content = log_file.read()
     
-            # Display the log in a QMessageBox
-            log_dialog = QMessageBox(self)
-            log_dialog.setWindowTitle("Application Log")
-            log_dialog.setText(log_contents)
-            log_dialog.setStandardButtons(QMessageBox.Ok)
+            # Show logs in a custom dialog
+            log_dialog = LogViewerDialog("Application Log", log_content, self)
             log_dialog.exec_()
         except FileNotFoundError:
             self.statusBar.showMessage("App log file not found.", 5000)
@@ -167,19 +165,17 @@ class TrueNASManager(QMainWindow):
             self.statusBar.showMessage(f"Error opening app log: {str(e)}", 10000)
     
     def view_serverlog(self):
-    """Fetches and displays the server log."""
-    try:
-        log_contents = fetch_server_log("/var/log/messages")  # Replace with desired log path
-
-        # Display the log in a QMessageBox
-        log_dialog = QMessageBox(self)
-        log_dialog.setWindowTitle("Server Log")
-        log_dialog.setText(log_contents)
-        log_dialog.setStandardButtons(QMessageBox.Ok)
-        log_dialog.exec_()
-    except Exception as e:
-        self.statusBar.showMessage(f"Error fetching server log: {str(e)}", 10000)
+        """Fetches and displays the combined server log."""
+        try:
+            # Fetch combined logs
+            combined_logs = fetch_combined_server_logs()
     
+            # Show logs in a custom dialog
+            log_dialog = LogViewerDialog("Server Log", combined_logs, self)
+            log_dialog.exec_()
+        except Exception as e:
+            self.statusBar.showMessage(f"Error fetching server log: {str(e)}", 10000)
+ 
     def refresh_data(self):
         """Fetches and updates both tables."""
         self.statusBar.showMessage("Refreshing SMART and dataset information...")
