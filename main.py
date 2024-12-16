@@ -1,5 +1,6 @@
 import sys
 import logging
+from dark_mode_utils import save_dark_mode_state, load_dark_mode_state
 from log_viewer import LogViewerDialog
 from timestamp_utils import save_last_alert_check_time, load_last_alert_check_time
 from PyQt5.QtWidgets import (
@@ -14,6 +15,47 @@ from performance_visualisation import PerformanceVisualisation
 from dialogs import ConfigDialog
 from reset_utils import reset_app
 from setup import SetupDialog
+
+dark_mode_stylesheet = """
+QMainWindow {
+    background-color: #2d2d2d;
+    color: #ffffff;
+}
+
+QLabel, QPushButton, QMenuBar, QMenu, QTabWidget, QTableWidget {
+    color: #ffffff;
+}
+
+QTextEdit, QTableWidget {
+    background-color: #3c3c3c;
+    color: #ffffff;
+    border: 1px solid #4d4d4d;
+}
+
+QPushButton {
+    background-color: #4d4d4d;
+    border: 1px solid #5d5d5d;
+    padding: 5px;
+}
+
+QPushButton:hover {
+    background-color: #5d5d5d;
+}
+
+QMenuBar {
+    background-color: #3c3c3c;
+}
+
+QMenu {
+    background-color: #3c3c3c;
+    border: 1px solid #4d4d4d;
+}
+
+QTabWidget::pane {
+    background-color: #2d2d2d;
+    border: 1px solid #4d4d4d;
+}
+"""
 
 # Configure logging
 logging.basicConfig(
@@ -41,6 +83,11 @@ class TrueNASManager(QMainWindow):
         self.setStatusBar(self.statusBar)
         self.statusBar.showMessage("Ready")  # Initial message
 
+        # Load Dark Mode State
+        dark_mode_enabled = load_dark_mode_state()
+        if dark_mode_enabled:
+            self.setStyleSheet(dark_mode_stylesheet)
+        
         # Periodic updates to Disks and Datasets (of needed)
         #self.timer = QTimer()
         #self.timer.timeout.connect(self.refresh_data)
@@ -121,6 +168,12 @@ class TrueNASManager(QMainWindow):
         reset_action.triggered.connect(self.confirm_reset)
         settings_menu.addAction(reset_action)
 
+        # Toggle Dark Mode
+        dark_mode_action = QAction("Toggle Dark Mode", self, checkable=True)
+        dark_mode_action.setChecked(load_dark_mode_state())  # Set initial state
+        dark_mode_action.triggered.connect(lambda: self.toggle_dark_mode(dark_mode_action.isChecked()))
+        settings_menu.addAction(dark_mode_action)
+        
         # System Control Menu
         system_menu = menu_bar.addMenu("System Control")
         
@@ -145,6 +198,18 @@ class TrueNASManager(QMainWindow):
         serverlog_action.triggered.connect(self.view_serverlog)
         log_menu.addAction(serverlog_action)
 
+    def toggle_dark_mode(self, enabled):
+        """Toggles dark mode on or off and saves the state."""
+        if enabled:
+            self.setStyleSheet(dark_mode_stylesheet)
+            self.statusBar.showMessage("Dark mode enabled.", 5000)
+        else:
+            self.setStyleSheet("")  # Reset to default
+            self.statusBar.showMessage("Dark mode disabled.", 5000)
+    
+        # Save the dark mode state
+        save_dark_mode_state(enabled)
+    
     def add_log_alert_indicator(self):
         """Adds a red exclamation mark to the Logs menu if there are new alerts."""
         self.log_menu.setTitle("Logs ❗")  # Update menu title with an indicator
