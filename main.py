@@ -304,8 +304,7 @@ class TrueNASManager(QMainWindow):
         except Exception as e:
             self.statusBar.showMessage(f"Error refreshing SMART data: {str(e)}", 10000)
 
-
-        def update_datasets_table(self):
+    def update_datasets_table(self):
         """Fetches and updates the datasets table."""
         try:
             datasets = fetch_datasets()  # Fetch dataset info from TrueNAS
@@ -343,10 +342,10 @@ class TrueNASManager(QMainWindow):
                 action_layout = QHBoxLayout()
                 action_layout.setContentsMargins(0, 0, 0, 0)
     
-                # Encrypt/Decrypt Action (Clicking the state label toggles encryption state)
-                encryption_button = QPushButton("Toggle")
-                encryption_button.clicked.connect(lambda _, d=dataset_name, k=key_status: self.toggle_encryption_state(d, k))
-                action_layout.addWidget(encryption_button)
+                # Encrypt/Decrypt Button
+                toggle_button = QPushButton("Toggle")
+                toggle_button.clicked.connect(lambda _, d=dataset_name, k=key_status: self.toggle_encryption_state(d, k))
+                action_layout.addWidget(toggle_button)
     
                 # Details Button
                 details_button = QPushButton("Details")
@@ -361,7 +360,7 @@ class TrueNASManager(QMainWindow):
             self.statusBar.showMessage("Dataset table updated successfully.", 3000)
         except Exception as e:
             self.statusBar.showMessage(f"Error updating dataset table: {str(e)}", 10000)
-    
+
     def fetch_snapshot_count(self, dataset_name):
         """Fetches the number of snapshots for a dataset."""
         try:
