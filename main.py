@@ -407,6 +407,18 @@ class TrueNASManager(QMainWindow):
         except Exception as e:
             self.statusBar.showMessage(f"Error processing {dataset_name}: {str(e)}", 10000)
 
+    def show_dataset_details(self, dataset_name):
+        """Displays additional dataset details in a dialog."""
+        try:
+            # Fetch all properties for the dataset
+            output = execute_ssh_command(f"zfs get all {dataset_name}")
+    
+            # Use LogViewerDialog to display the details
+            details_dialog = LogViewerDialog(f"Details for {dataset_name}", output, self)
+            details_dialog.exec_()
+        except Exception as e:
+            self.statusBar.showMessage(f"Error fetching details: {str(e)}", 10000)
+   
     def show_smart_details(self, drive_name):
         """Displays detailed SMART data for a specific drive."""
         QMessageBox.information(self, "SMART Details", f"Details for drive {drive_name}")
