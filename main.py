@@ -305,30 +305,89 @@ class TrueNASManager(QMainWindow):
             self.statusBar.showMessage(f"Error refreshing SMART data: {str(e)}", 10000)
 
 
-    def update_datasets_table(self):
+        def update_datasets_table(self):
         """Fetches and updates the datasets table."""
-        self.statusBar.showMessage("Refreshing dataset information...")
         try:
-            datasets = fetch_datasets()
+            datasets = fetch_datasets()  # Fetch dataset info from TrueNAS
+            self.datasets_table.setColumnCount(5)
+            self.datasets_table.setHorizontalHeaderLabels(
+                ["Name", "Encryption State", "Snapshot Count", "Physical Used", "Actions"]
+            )
+            self.datasets_table.horizontalHeader().setSectionsMovable(True)  # Allow column reordering
+            self.datasets_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+    
             self.datasets_table.setRowCount(len(datasets))
             for row, dataset in enumerate(datasets):
                 dataset_name = dataset["name"]
                 key_status = dataset["keystatus"]
-
+                encryption_state = "Locked 🔒" if key_status == "unavailable" else "Unlocked 🔓"
+                encryption_color = "red" if key_status == "unavailable" else "green"
+                snapshot_count = self.fetch_snapshot_count(dataset_name)
+                physical_used = self.fetch_physical_used(dataset_name)
+    
+                # Column: Name
                 self.datasets_table.setItem(row, 0, QTableWidgetItem(dataset_name))
-
-                # Encryption State
-                state_label = QLabel("Locked 🔒" if key_status == "unavailable" else "Unlocked 🔓")
-                state_label.setStyleSheet("color: red;" if key_status == "unavailable" else "color: green;")
+    
+                # Column: Encryption State with visual style
+                state_label = QLabel(encryption_state)
+                state_label.setStyleSheet(f"color: {encryption_color}; font-weight: bold;")
                 self.datasets_table.setCellWidget(row, 1, state_label)
-
-                # Action Button
-                action_button = QPushButton("Unlock" if key_status == "unavailable" else "Lock")
-                action_button.clicked.connect(lambda _, d=dataset_name, k=key_status: self.toggle_encryption_state(d, k))
-                self.datasets_table.setCellWidget(row, 2, action_button)
-            self.statusBar.showMessage("Dataset information refreshed successfully.", 5000)
+    
+                # Column: Snapshot Count
+                self.datasets_table.setItem(row, 2, QTableWidgetItem(snapshot_count))
+    
+                # Column: Physical Used
+                self.datasets_table.setItem(row, 3, QTableWidgetItem(physical_used))
+    
+                # Column: Actions
+                action_layout = QHBoxLayout()
+                action_layout.setContentsMargins(0, 0, 0, 0)
+    
+                # Encrypt/Decrypt Action (Clicking the state label toggles encryption state)
+                encryption_button = QPushButton("Toggle")
+                encryption_button.clicked.connect(lambda _, d=dataset_name, k=key_status: self.toggle_encryption_state(d, k))
+                action_layout.addWidget(encryption_button)
+    
+                # Details Button
+                details_button = QPushButton("Details")
+                details_button.clicked.connect(lambda _, d=dataset_name: self.show_dataset_details(d))
+                action_layout.addWidget(details_button)
+    
+                # Embed layout into the table cell
+                container = QWidget()
+                container.setLayout(action_layout)
+                self.datasets_table.setCellWidget(row, 4, container)
+    
+            self.statusBar.showMessage("Dataset table updated successfully.", 3000)
         except Exception as e:
-            self.statusBar.showMessage(f"Error refreshing dataset information: {str(e)}", 10000)
+            self.statusBar.showMessage(f"Error updating dataset table: {str(e)}", 10000)
+    
+    def fetch_snapshot_count(self, dataset_name):
+        """Fetches the number of snapshots for a dataset."""
+        try:
+            output = execute_ssh_command(f"zfs list -t snapshot -o name {dataset_name}")
+            snapshots = output.strip().splitlines()
+            return str(len(snapshots) - 1)  # Exclude the header
+        except Exception:
+            return "N/A"
+    
+    def fetch_physical_used(self, dataset_name):
+        """Fetches the physical used space for a dataset."""
+        try:
+            output = execute_ssh_command(f"zfs get -H -o value physicalused {dataset_name}")
+            return output.strip() or "N/A"
+        except Exception:
+            return "N/A"
+    
+    def show_dataset_details(self, dataset_name):
+        """Displays additional dataset details in a dialog."""
+        try:
+            output = execute_ssh_command(f"zfs get all {dataset_name}")
+            details_dialog = LogViewerDialog(f"Details for {dataset_name}", output, self)
+            details_dialog.exec_()
+        except Exception as e:
+            self.statusBar.showMessage(f"Error fetching details: {str(e)}", 10000)
+
 
     def toggle_encryption_state(self, dataset_name, key_status):
         """Toggles the encryption state of a dataset."""
