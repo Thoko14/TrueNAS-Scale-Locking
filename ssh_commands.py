@@ -1,7 +1,9 @@
 import paramiko
 import logging
-import time
+import json
+from datetime import datetime
 from config import load_config, decrypt_password
+from timestamp_utils import load_last_alert_check_time, save_last_alert_check_time
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -25,8 +27,8 @@ def execute_ssh_command(command):
         client.connect(hostname=hostname, username=username, password=password)
 
         stdin, stdout, stderr = client.exec_command(command)
-        output = stdout.read().decode()
-        error = stderr.read().decode()
+        output = stdout.read().decode("utf-8", errors="replace")  # Use UTF-8 decoding
+        error = stderr.read().decode("utf-8", errors="replace")  # Handle errors safely
 
         if error:
             logging.error(f"Error executing command: {error}")
@@ -68,22 +70,123 @@ def fetch_smart_details(drive_name):
     command = f"smartctl -a {drive_name}"
     return execute_ssh_command(command)
 
-def fetch_combined_server_logs():
-    """Fetches combined logs from /var/log/messages and /var/log/alerts.log."""
+def fetch_messages_log():
+    """Fetches only the system messages log."""
     try:
-        # Combine messages and alerts logs
-        command = "cat /var/log/messages /var/log/alerts.log"
-        combined_logs = execute_ssh_command(command)
-        return combined_logs
+        # Fetch system messages safely
+        messages_command = "sudo cat /var/log/messages"
+        messages_output = execute_ssh_command(messages_command)
+        safe_messages = messages_output.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
+        return f"===== System Messages =====\n{safe_messages}"
     except Exception as e:
-        raise RuntimeError(f"Error fetching server logs: {str(e)}")
+        raise RuntimeError(f"Error fetching system messages log: {str(e)}")
 
-def fetch_new_alerts(last_check_time):
-    """Fetches alerts from the server log since the last check."""
+def fetch_alerts_log():
+    """Fetches only the TrueNAS alerts log."""
+    import json
+    from datetime import datetime
+
     try:
-        # Using `awk` to filter entries based on the timestamp
-        command = f"awk -v last_check={last_check_time} '$0 > last_check' /var/log/alerts.log"
-        new_alerts = execute_ssh_command(command)
+        # Fetch alerts safely
+        alerts_command = "sudo midclt call alert.list"
+        alerts_output = execute_ssh_command(alerts_command)
+
+        # Parse alerts into readable format
+        alerts_log = ""
+        try:
+            alerts = json.loads(alerts_output)
+            if not alerts:
+                alerts_log = "No active alerts found.\n"
+            else:
+                for alert in alerts:
+                    raw_date = alert.get("datetime", {}).get("$date", 0)
+                    readable_date = datetime.fromtimestamp(raw_date / 1000).isoformat() if raw_date else "Unknown time"
+                    level = alert.get("level", "INFO").upper()
+                    formatted_message = alert.get("formatted", "No message available")
+                    alerts_log += f"{readable_date} - {level}: {formatted_message}\n"
+        except json.JSONDecodeError:
+            alerts_log = "Error parsing alerts log."
+
+        return f"===== Alerts =====\n{alerts_log}"
+    except Exception as e:
+        raise RuntimeError(f"Error fetching alerts log: {str(e)}")
+
+import os
+import json
+from datetime import datetime
+
+def fetch_combined_server_logs():
+    """Fetches and combines logs from /var/log/messages and TrueNAS alerts, saving them locally."""
+
+    try:
+        # Step 1: Fetch system messages
+        messages_command = "sudo cat /var/log/messages"
+        messages_output = execute_ssh_command(messages_command)
+        safe_messages = messages_output.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
+
+        # Step 2: Fetch alerts from TrueNAS
+        alerts_command = "sudo midclt call alert.list"
+        alerts_output = execute_ssh_command(alerts_command)
+        alerts_log = ""
+
+        # Step 3: Process alerts
+        try:
+            alerts = json.loads(alerts_output)
+            if not alerts:
+                alerts_log = "No active alerts found.\n"
+            else:
+                for alert in alerts:
+                    raw_date = alert.get("datetime", {}).get("$date", 0)
+                    readable_date = datetime.fromtimestamp(raw_date / 1000).isoformat() if raw_date else "Unknown time"
+                    level = alert.get("level", "INFO").upper()
+                    formatted_message = alert.get("formatted", "No message available")
+                    alerts_log += f"{readable_date} - {level}: {formatted_message}\n"
+        except json.JSONDecodeError:
+            alerts_log = "Error parsing alerts log."
+
+        # Step 4: Combine logs
+        combined_logs = f"===== System Messages =====\n{safe_messages}\n\n===== Alerts =====\n{alerts_log}"
+        safe_combined_logs = combined_logs.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
+
+        # Step 5: Save to local file
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        SERVER_LOG_FILE = os.path.join(BASE_DIR, "server.log")
+
+        with open(SERVER_LOG_FILE, "w", encoding="utf-8", errors="replace") as file:
+            file.write(safe_combined_logs)
+
+        return SERVER_LOG_FILE  # Return the file path for display
+
+    except Exception as e:
+        raise RuntimeError(f"Error fetching combined server logs: {str(e)}")
+
+
+
+def fetch_new_alerts():
+    """Fetches new alerts from the TrueNAS server."""
+    try:
+        # Load the last check timestamp
+        last_check_timestamp = load_last_alert_check_time()
+
+        # Fetch alerts using the TrueNAS middleware command
+        command = "midclt call alert.list"
+        output = execute_ssh_command(command)
+
+        # Parse the JSON response
+        alerts = json.loads(output)
+
+        # Filter alerts based on timestamp
+        new_alerts = []
+        for alert in alerts:
+            alert_time = datetime.strptime(alert["datetime"], "%Y-%m-%dT%H:%M:%S")
+            if last_check_timestamp is None or alert_time > last_check_timestamp:
+                new_alerts.append(alert)
+
+        # Update the last check timestamp
+        if new_alerts:
+            latest_alert_time = max(datetime.strptime(alert["datetime"], "%Y-%m-%dT%H:%M:%S") for alert in new_alerts)
+            save_last_alert_check_time(latest_alert_time)
+
         return new_alerts
     except Exception as e:
         raise RuntimeError(f"Error fetching new alerts: {str(e)}")

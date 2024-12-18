@@ -1,5 +1,6 @@
 import sys
 import logging
+import time
 from dark_mode_utils import save_dark_mode_state, load_dark_mode_state
 from log_viewer import LogViewerDialog
 from timestamp_utils import save_last_alert_check_time, load_last_alert_check_time
@@ -10,11 +11,16 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import QTimer
 from PyQt5.QtGui import QGuiApplication
 from config import load_config, save_config, decrypt_password
-from ssh_commands import execute_ssh_command, fetch_datasets, fetch_smart_data, unlock_dataset, lock_dataset, reboot_system, shutdown_system
+from ssh_commands import execute_ssh_command, fetch_datasets, fetch_smart_data, unlock_dataset, lock_dataset, reboot_system, shutdown_system, fetch_new_alerts, fetch_messages_log, fetch_alerts_log, fetch_combined_server_logs
 from performance_visualisation import PerformanceVisualisation
 from dialogs import ConfigDialog
 from reset_utils import reset_app
 from setup import SetupDialog
+from datetime import datetime
+
+import os
+os.environ["PYTHONUTF8"] = "1"  # Force UTF-8 mode in Python
+
 
 dark_mode_stylesheet = """
 QMainWindow {
@@ -56,16 +62,21 @@ QTabWidget::pane {
     border: 1px solid #4d4d4d;
 }
 """
+# Log file path
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+APP_LOG_FILE = os.path.join(BASE_DIR, "app.log")
 
-# Configure logging
+# Force log writing with handlers
 logging.basicConfig(
-    filename="app.log",  # Log file name
-    level=logging.INFO,  # Log level
-    format="%(asctime)s - %(levelname)s - %(message)s"  # Log format
+    filename=APP_LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    filemode="w",  # Overwrite log file every time the app starts
+    force=True     # Force reconfiguration if logging has already been set up
 )
 
-# Example usage
 logging.info("Application started.")
+print(f"Logging to: {APP_LOG_FILE}")
 
 class TrueNASManager(QMainWindow):
     def __init__(self):
@@ -186,17 +197,17 @@ class TrueNASManager(QMainWindow):
         system_menu.addAction(shutdown_action)
 
         # Log Menu
-        log_menu = menu_bar.addMenu("Logs")
+        self.log_menu = menu_bar.addMenu("Logs")
         
         # App Log
         applog_action = QAction("App Log", self)
         applog_action.triggered.connect(self.view_applog)
-        log_menu.addAction(applog_action)
+        self.log_menu.addAction(applog_action)
 
         # Server Log
         serverlog_action = QAction("Server Log", self)
         serverlog_action.triggered.connect(self.view_serverlog)
-        log_menu.addAction(serverlog_action)
+        self.log_menu.addAction(serverlog_action)
 
     def toggle_dark_mode(self, enabled):
         """Toggles dark mode on or off and saves the state."""
@@ -237,24 +248,76 @@ class TrueNASManager(QMainWindow):
     def view_applog(self):
         """Opens the application log in a custom log viewer dialog."""
         try:
-            log_dialog = LogViewerDialog("Application Log", "app.log", is_server_log=False, parent=self)
+            # Define the absolute path to the app log
+            BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+            log_files = {"Application Log": os.path.join(BASE_DIR, "app.log")}  # Tabbed structure
+
+            # Open the log viewer dialog with a single log
+            log_dialog = LogViewerDialog("Application Log", log_files, self)
             log_dialog.exec_()
         except Exception as e:
             self.statusBar.showMessage(f"Error opening app log: {str(e)}", 10000)
 
     def view_serverlog(self):
-        """Fetches and displays the combined server log."""
+        """Fetches and displays system messages and alerts logs in their respective tabs."""
         try:
-            combined_logs = fetch_combined_server_logs()
-    
-            # Show logs in a custom dialog
-            log_dialog = LogViewerDialog("Server Log", combined_logs, is_server_log=True, parent=self)
+            self.statusBar.showMessage("Fetching server logs...")
+
+            # Fetch system messages
+            system_messages = fetch_messages_log()
+            safe_messages = system_messages.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
+
+            # Fetch alerts log
+            alerts_log = fetch_alerts_log()
+            safe_alerts = alerts_log.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
+
+            # Save logs to temporary files
+            BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+            system_log_file = os.path.join(BASE_DIR, "system_messages.log")
+            alerts_log_file = os.path.join(BASE_DIR, "alerts.log")
+
+            with open(system_log_file, "w", encoding="utf-8", errors="replace") as file:
+                file.write(safe_messages)
+
+            with open(alerts_log_file, "w", encoding="utf-8", errors="replace") as file:
+                file.write(safe_alerts)
+
+            # Check for new alerts
+            last_check_time = load_last_alert_check_time()
+            if last_check_time is None:
+                last_check_time = datetime.min  # Ensure a valid default
+            new_alerts = [line for line in safe_alerts.splitlines() if self.extract_timestamp(line) > last_check_time]
+
+            if new_alerts:
+                self.log_menu.setTitle("Logs ❗")  # Add red exclamation
+            else:
+                self.log_menu.setTitle("Logs")  # Reset menu title if no new alerts
+
+            # Open the LogViewerDialog
+            log_files = {
+                "Alerts": alerts_log_file,
+                "System Messages": system_log_file
+            }
+
+            log_dialog = LogViewerDialog("Server Logs", log_files, self)
             log_dialog.exec_()
-    
-            # Clear the indicator once viewed
-            self.log_menu.setTitle("Logs")
+
+            # After viewing, update the last check time
+            save_last_alert_check_time(datetime.now())
+
+            self.log_menu.setTitle("Logs")  # Clear indicator after viewing
+            self.statusBar.showMessage("Server logs loaded successfully.", 5000)
+
         except Exception as e:
-            self.statusBar.showMessage(f"Error fetching server log: {str(e)}", 10000)
+            self.statusBar.showMessage(f"Error fetching server logs: {str(e)}", 10000)
+
+    def extract_timestamp(self, log_line):
+        """Extracts a timestamp from a log line if present."""
+        try:
+            timestamp_str = log_line.split(" ")[0]  # Assume timestamp is at the start
+            return datetime.fromisoformat(timestamp_str)
+        except Exception:
+            return datetime.min  # Return the minimum datetime if parsing fails
 
     def refresh_data(self):
         """Fetches and updates both tables."""
