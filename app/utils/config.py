@@ -1,7 +1,9 @@
+# Configuration management
+
 import json
 from cryptography.fernet import Fernet
 
-# Encryption Key
+# File Paths
 KEY_FILE = "encryption_key.key"
 CONFIG_FILE = "config.json"
 
@@ -20,7 +22,7 @@ def get_encryption_key():
             key_file.write(key)
         return key
 
-
+# Initialize encryption key
 ENCRYPTION_KEY = get_encryption_key()
 FERNET = Fernet(ENCRYPTION_KEY)
 
@@ -30,17 +32,10 @@ def load_config():
         with open(CONFIG_FILE, "r") as file:
             return json.load(file)
     except FileNotFoundError:
-        return {
-            "host": "",
-            "username": "",
-            "password": None,
-            "pool": "",
-            "datasets": []
-        }
+        raise FileNotFoundError("Configuration file not found. Setup is required.")
 
-# Save configuration
 def save_config(config):
-    """Speichert die Konfigurationsdatei."""
+    """Saves the configuration file."""
     with open(CONFIG_FILE, "w") as file:
         json.dump(config, file, indent=4)
 
@@ -50,3 +45,28 @@ def encrypt_password(password):
 
 def decrypt_password(encrypted_password):
     return FERNET.decrypt(encrypted_password.encode()).decode()
+
+def get_api_key():
+    """Retrieves the API key from the configuration file."""
+    config = load_config()
+    api_key = config.get("api_key")
+    if not api_key:
+        raise ValueError("API key is missing in the configuration file.")
+    return api_key
+
+def get_api_url():
+    """Retrieves the base API URL from the configuration file."""
+    config = load_config()
+    api_url = config.get("host", "").strip()
+
+    # Ensure the URL includes a scheme
+    if not api_url.startswith(("http://", "https://")):
+        api_url = f"http://{api_url}"  # Default to http:// if no scheme is provided
+
+    # Append API prefix if missing
+    if not api_url.endswith("/api/v2.0"):
+        api_url = f"{api_url.rstrip('/')}/api/v2.0"
+
+    return api_url
+
+

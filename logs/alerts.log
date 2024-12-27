@@ -1,0 +1,5 @@
+{'$date': 1733670893000} - CRITICAL: Device: /dev/sdd [SAT], ATA error count increased from 0 to 4.
+{'$date': 1733679892000} - CRITICAL: Device: /dev/sdc [SAT], ATA error count increased from 74 to 75.
+{'$date': 1734522309000} - INFO: Scrub of pool 'boot-pool' finished.
+{'$date': 1734522301000} - INFO: Scrub of pool 'boot-pool' started.
+{'$date': 1734456016000} - INFO: A system update is available. Go to System Settings → Update to download and apply the update.

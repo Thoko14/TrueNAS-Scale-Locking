@@ -1,8 +1,10 @@
+# Config dialog
+
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QDialogButtonBox,
     QLabel, QPushButton, QMessageBox, QWidget, QSpacerItem, QSizePolicy
 )
-from config import load_config, save_config, encrypt_password
+from app.utils.config import load_config, save_config, encrypt_password
 
 
 class ConfigDialog(QDialog):

@@ -1,4 +1,0 @@
-===== Alerts =====
-2024-12-08T16:14:53 - CRITICAL: Device: /dev/sdd [SAT], ATA error count increased from 0 to 4.
-2024-12-08T18:44:52 - CRITICAL: Device: /dev/sdc [SAT], ATA error count increased from 74 to 75.
-2024-12-17T18:20:16 - INFO: A system update is available. Go to System Settings → Update to download and apply the update.

@@ -1,1 +1,4 @@
-{"host": "192.168.2.71", "username": "Thomas", "password": "gAAAAABnYbcy0b2iYaekJt--0cK-p5ruhfYx0hv6ZldTjTVl4wq3kWFGfWcT6mFCfx72brWFDZJNPvhqsGtF9Sgo18VKrTVvVw==", "pool": "TrueMirror", "datasets": [{"name": "", "password": null}]}
+{
+    "host": "192.168.2.71",
+    "api_key": "1-FJvHMz1jsMV3RFWbXRIHumD6NzgtKvuCsEKHLrdG3BGBk80OmGvaXVjBtxnDoEOW"
+}

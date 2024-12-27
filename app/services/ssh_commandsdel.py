@@ -2,8 +2,8 @@ import paramiko
 import logging
 import json
 from datetime import datetime
-from config import load_config, decrypt_password
-from timestamp_utils import load_last_alert_check_time, save_last_alert_check_time
+from app.utils.config import load_config, decrypt_password
+from app.utils.timestamp import load_last_alert_check_time, save_last_alert_check_time
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
